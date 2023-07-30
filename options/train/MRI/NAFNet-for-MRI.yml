@@ -1,0 +1,124 @@
+# ------------------------------------------------------------------------
+# Copyright (c) 2021 megvii-model. All Rights Reserved.
+# ------------------------------------------------------------------------
+# Modified from BasicSR (https://github.com/xinntao/BasicSR)
+# Copyright 2018-2020 BasicSR Authors
+# ------------------------------------------------------------------------
+# general settings
+name: NAFNet-MRI
+# macs: 57.91 GMac, params: 3.2 M
+model_type: MRIModel
+scale: 1
+num_gpu: 1
+manual_seed: 10
+
+datasets:
+  train:
+    name: MRI-train
+    type: PairedMRIDataset
+    dataroot: ./datasets/MRIDataset/MRI_Train
+    id_and_labels: ./datasets/MRIDataset/MRI_Train/train_label.csv
+    label_idx: 1
+#    flag: grayscale
+#    filename_tmpl: '{}'
+
+#    gt_size: 24
+
+    use_flip: true
+    use_rot: true
+    resizes: [384]
+
+    # data loader
+    use_shuffle: true
+    num_worker_per_gpu: 1
+    batch_size_per_gpu: 1
+    dataset_enlarge_ratio: 1
+    prefetch_mode: ~
+
+
+#    type: PairedImageDataset
+#    dataroot_gt: ./datasets/MRI/val/label/
+#    dataroot_lq: ./datasets/MRI/val/img/
+#    flag: grayscale
+#    io_backend:
+#      type: disk
+
+network_g:
+  type: NAFNetMRIADCT2DWIRoImage
+  width: 32
+  img_channel: 1
+  out_channel: 64
+  enc_blk_nums: [1, 1, 1, 1]
+  middle_blk_num: 1
+  dec_blk_nums: [1, 1, 1, 1]
+
+
+# path
+path:
+  pretrain_network_g: ~
+  strict_load_g: true
+  resume_state: ~
+#  visualization: visual/ntire2021-demo
+
+# training settings
+train:
+  optim_g:
+    type: AdamW
+    lr: !!float 1e-4
+    weight_decay: 0.05
+    betas: [0.9, 0.9]
+
+  scheduler:
+    type: TrueCosineAnnealingLR
+    T_max: 40000
+    eta_min: !!float 1e-7
+
+  total_iter: 40000
+  warmup_iter: -1 # no warm up
+
+  update_freq: 8
+
+  # losses
+  pixel_opt:
+    type: BCELoss
+    loss_weight: 1.
+#    reduction: mean
+
+
+# validation settings
+val:
+  val_freq: !!float 4e2
+  save_img: false
+  trans_num: 8
+#  grids: true
+#  crop_size: 384
+#  max_minibatch: 1
+
+  metrics:
+    acc: # metric name, can be arbitrary
+      type: calculate_acc
+#    sumofacc:
+#      type: calculate_quan
+#      crop_border: 0
+#      test_y_channel: false
+#    ssim:
+#      type: calculate_ssim
+#      crop_border: 0
+#      test_y_channel: false
+#  metrics:
+#    psnr: # metric name, can be arbitrary
+#      test_y_channel: false
+
+# logging settings
+logger:
+  print_freq: 500
+  save_checkpoint_freq: !!float 1e4
+  use_tb_logger: true
+  wandb:
+    project: ~
+    resume_id: ~
+
+# dist training settings
+dist_params:
+  backend: nccl
+  port: 29500
